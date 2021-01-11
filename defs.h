@@ -29,7 +29,7 @@ void            panic(char*) __attribute__((noreturn));
 int             setpixel(int, int, int);
 int             drawline(int, int, int, int, int);
 int             setvideomode(int);
-int             executeGraphicsBatch(GraphicsCall *);
+int             executeGraphicsBatch(GraphicsCall [], int);
 
 // exec.c
 int             exec(char*, char**);

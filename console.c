@@ -1077,8 +1077,8 @@ int setvideomode(int mode){
     return validMode;
 }
 
-void processGraphicsCall(GraphicsCall *call){
-    char *callName = call->callName;
+void processGraphicsCall(GraphicsCall call){
+    char *callName = call.callName;
     int length = strlen(callName);
 
     // Print string for now (remove when func working)
@@ -1088,31 +1088,17 @@ void processGraphicsCall(GraphicsCall *call){
     }
     cgaputc('\n');
     
-
-    if (strncmp(callName, "setvideomode", length) == 0)
-        setvideomode(call->arguments[0]);
-    else if (strncmp(callName, "setpixel", length) == 0){
-        //setpixel(call->arguments[0], call->arguments[1], call->arguments[2]);
-        cgaputc('\n');
-        cgaputc('Y');
-        cgaputc('\n');
-    }
-    else if(strncmp(callName, "drawline", length))
-        drawline(call->arguments[0], call->arguments[1], call->arguments[2], call->arguments[3], call->arguments[4]);
     
 }
 
 // Called in sysvideo
-int executeGraphicsBatch(GraphicsCall *call){
-    if (!call)
+int executeGraphicsBatch(GraphicsCall calls[], int callCount){
+    if (callCount < 1)
         return -1;
-    
-    processGraphicsCall(call);
-    
-    while (call->terminal == -1)
+
+    for (int i = 0; i < callCount; i++)
     {
-        call = call->nextCall;
-        processGraphicsCall(call);
+        processGraphicsCall(calls[i]);
     }
     
     return 0;

@@ -10,10 +10,7 @@ enum {
 };
 
 typedef struct GraphicsCall {
-    char *callName; // The function name e.g setpixel, setvideomode, drawline 
-    int *arguments;  // Hold the arguments
+    char callName[50]; // The function name e.g setpixel, setvideomode, drawline 
+    char arguments[10];  // Hold the arguments
     char argumentsLength;
-
-    struct GraphicsCall *nextCall;
-    char terminal; // for some reason, checking null for *nextCall didnt work, so extra flag it is for the time being
 } GraphicsCall;
