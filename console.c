@@ -29,6 +29,10 @@ static int panicked = 0;
 
 uint currentvgamode = 0x03;
 
+// Stage 2 vars
+unsigned short textModeSnapshot[VGA_0x03_HEIGHT * VGA_0x03_WIDTH];
+unsigned int cursorSnapshot;
+
 /**
  * Global console state shared between all processes and CPUs.
  */
@@ -146,15 +150,28 @@ void panic(char *s) {
 #define BACKSPACE 0x100
 #define CRTPORT 0x3d4
 
+/*
+ CONTAINS CURSOR EXPLANATION
+*/
 static void cgaputc(int c) {
     int pos;
-    ushort* crt = VGA_0x03_MEMORY;
+    ushort* crt;
+    
+    if (currentvgamode == 0x03)
+    {
+        crt = VGA_0x03_MEMORY;
 
-    // Cursor position: col + 80*row.
-    outb(CRTPORT, 14);
-    pos = inb(CRTPORT + 1) << 8;
-    outb(CRTPORT, 15);
-    pos |= inb(CRTPORT + 1);
+        // Cursor position: col + 80*row.
+        outb(CRTPORT, 14);
+        pos = inb(CRTPORT + 1) << 8;
+        outb(CRTPORT, 15);
+        pos |= inb(CRTPORT + 1);
+    } else { 
+        //In graphics mode so we want to use our snapshot
+        crt = (ushort *) &textModeSnapshot;
+        pos = cursorSnapshot;
+    }
+    
 
     if (c == '\n') {
         pos += 80 - pos % 80;
@@ -166,7 +183,6 @@ static void cgaputc(int c) {
     }
     else {
         crt[pos++] = (c & 0xff) | 0x0700;  // black on white
-
     }
     if (pos < 0 || pos > 25 * 80) {
         panic("pos under/overflow");
@@ -178,10 +194,16 @@ static void cgaputc(int c) {
         memset(crt + pos, 0, sizeof(crt[0]) * (24 * 80 - pos));
     }
 
-    outb(CRTPORT, 14);
-    outb(CRTPORT + 1, pos >> 8);
-    outb(CRTPORT, 15);
-    outb(CRTPORT + 1, pos);
+   if (currentvgamode == 0x03)
+   {
+        outb(CRTPORT, 14);        
+        outb(CRTPORT + 1, pos >> 8);
+        outb(CRTPORT, 15);
+        outb(CRTPORT + 1, pos);
+   } else {
+       cursorSnapshot = pos;
+   }
+   
     crt[pos] = ' ' | 0x0700;
 }
 
@@ -202,8 +224,9 @@ void consputc(int c) {
         uartputc(c);
     }
     cgaputc(c);
-}
+} 
 
+// Gets keyboard input ?
 int consoleget(void) {
     int c;
 
@@ -875,4 +898,222 @@ uchar* consolevgabuffer() {
     }
 
     return base;
+}
+
+//My functions (some edits to cga output above);
+
+#define VGA_0x12_WIDTH 640
+#define VGA_0x12_HEIGHT 480
+
+void getScreenBounds(int *width, int *height){
+
+    if (currentvgamode == 0x13)
+    {
+        *width = VGA_0x13_WIDTH;
+        *height = VGA_0x13_HEIGHT;
+    } 
+    else if (currentvgamode == 0x12)
+    {
+        *width = VGA_0x12_WIDTH;
+        *height = VGA_0x12_HEIGHT;
+    } else {
+        *height = 0;
+        *width = 0;
+    }
+}
+
+int pixelOutOfBounds(int x, int y){
+    int width, height;
+    getScreenBounds(&width, &height);
+    if (x > -1 && x < width && y > -1 && y < height)
+        return -1;
+    return 0;
+}
+
+/*
+     0 1 2 3
+    | | | | | 
+*/
+int setpixel_0x12(int x, int y, int colour){
+    int offset = (VGA_0x12_WIDTH * y ) + x;
+
+    for (char i = 0; i < 4; i++){
+        consolevgaplane(i);
+        uchar *planeAddrPtr = consolevgabuffer();
+        planeAddrPtr = planeAddrPtr + offset;
+
+        char pulledBit = (char) (colour >> (3 - i)) & 1;
+        *planeAddrPtr = pulledBit;
+    }
+    return 0;
+}
+
+int setpixel(int x, int y, int colour){
+    if (currentvgamode == 0x13)
+    {
+        if (pixelOutOfBounds(x, y) == 0)
+            return -1;
+        unsigned char *memoryLocation = (unsigned char *) VGA_0x13_MEMORY + (VGA_0x13_WIDTH * y) + x;
+        *memoryLocation = colour;
+    } 
+    else if (currentvgamode == 0x12)
+        return setpixel_0x12(x, y, colour);
+    
+    return 0;
+}
+
+int drawline(int x0, int y0, int x1, int y1, int colour){
+    // Bresenhams
+    int dx = x1 - x0;
+    int dy = y1 - y0;
+    int d = 2*dy - dx;
+    int y = y0;
+
+    for (int x = 0; x < x1; x++)
+    {
+        setpixel(x, y, colour);
+        if (d > 0){
+            y++;
+            d = d - 2*dx;
+        }
+        d = d + 2*dy;
+    }
+    return 0;
+}
+
+void paintVGAModeCanvas0x12(int colour){
+    int width, height;
+    getScreenBounds(&width, &height);
+
+    for (char i = 0; i < 4; i++){
+        consolevgaplane(i);
+        uchar *planeAddrPtr = consolevgabuffer();
+        char pulledBit = (char) (colour >> (3 - i)) & 1;
+        *planeAddrPtr = pulledBit;
+
+        memset(planeAddrPtr, pulledBit, width * height);
+    }
+}
+
+void paintVGAModeCanvas0x13(int colour){
+    int width, height;
+    getScreenBounds(&width, &height);
+    memset(VGA_0x13_MEMORY, colour, width * height);
+}
+
+void paintVGAModeCanvas(int colour){
+    switch (currentvgamode)
+    {
+    case 0x13:
+        paintVGAModeCanvas0x13(colour);
+        break;
+    case 0x12:
+        paintVGAModeCanvas0x12(colour);
+        break;
+    default:
+        break;
+    }
+}
+
+// 16 bit per "glyph"
+// Need to remember that a memory location is 8bits. short (16 bit) covers 2 locations
+// https://stackoverflow.com/questions/22437929/what-is-the-different-between-cgaputcint-c-uartputcint-c-constputc-int - answers a lot of questions
+
+void snapshotTextMode(){
+    //Text
+    unsigned short *location = (unsigned short *) VGA_0x03_MEMORY;
+    
+    for(int index=0; index < (VGA_0x03_HEIGHT * VGA_0x03_WIDTH); index++){
+        textModeSnapshot[index] = (unsigned short) *(location + index + 1);
+    }
+
+    // Cursor
+    int cursorPosition;
+
+    outb(CRTPORT, 14);
+    cursorPosition = inb(CRTPORT + 1) << 8;
+    outb(CRTPORT, 15);
+    cursorPosition |= inb(CRTPORT + 1);
+    cursorSnapshot = cursorPosition;
+}
+
+void restoreTextSnapshot(){
+    //Text
+    unsigned short *location = (unsigned short *) VGA_0x03_MEMORY;
+    
+    for(int index=0; index < (VGA_0x03_HEIGHT * VGA_0x03_WIDTH); index++){
+        *(location + index + 1) = textModeSnapshot[index];
+    }
+
+    //Cursor
+    outb(CRTPORT, 14);          // register call i think?
+    outb(CRTPORT + 1, cursorSnapshot >> 8);
+    outb(CRTPORT, 15);
+    outb(CRTPORT + 1, cursorSnapshot);
+}
+
+int setvideomode(int mode){
+    if (currentvgamode == 0x03)
+        snapshotTextMode();
+    
+    int validMode = consolevgamode(mode); // 0 if valid mode, -1 if invalid
+
+    if (validMode == -1)
+        return -1;
+
+    switch (mode)
+    {
+    case 0x12:
+    case 0x013:
+        paintVGAModeCanvas(0x0);
+        break;
+    case 0x03:
+        restoreTextSnapshot();
+        break;
+    default:
+        break;
+    }
+
+    return validMode;
+}
+
+void processGraphicsCall(GraphicsCall *call){
+    char *callName = call->callName;
+    int length = strlen(callName);
+
+    // Print string for now (remove when func working)
+    for (int i = 0; i < length; i++)
+    {
+        cgaputc(callName[i]);
+    }
+    cgaputc('\n');
+    
+
+    if (strncmp(callName, "setvideomode", length) == 0)
+        setvideomode(call->arguments[0]);
+    else if (strncmp(callName, "setpixel", length) == 0){
+        //setpixel(call->arguments[0], call->arguments[1], call->arguments[2]);
+        cgaputc('\n');
+        cgaputc('Y');
+        cgaputc('\n');
+    }
+    else if(strncmp(callName, "drawline", length))
+        drawline(call->arguments[0], call->arguments[1], call->arguments[2], call->arguments[3], call->arguments[4]);
+    
+}
+
+// Called in sysvideo
+int executeGraphicsBatch(GraphicsCall *call){
+    if (!call)
+        return -1;
+    
+    processGraphicsCall(call);
+    
+    while (call->terminal == -1)
+    {
+        call = call->nextCall;
+        processGraphicsCall(call);
+    }
+    
+    return 0;
 }

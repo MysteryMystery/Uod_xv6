@@ -25,6 +25,11 @@ int sleep(int);
 int uptime(void);
 int getch(void);
 // TODO: Declare your user APIs for your system calls.
+int setvideomode(int);
+int setpixel(int, int, int);
+int drawline(int, int, int, int, int);
+int begingraphics(void);
+int endgraphics(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

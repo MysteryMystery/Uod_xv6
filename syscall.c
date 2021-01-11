@@ -101,6 +101,11 @@ extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_getch(void);
 // TODO: Expose your system call assembly function to C.
+extern int sys_setvideomode(void);
+extern int sys_setpixel(void);
+extern int sys_drawline(void);
+extern int sys_begingraphics(void);
+extern int sys_endgraphics(void);
 
 static int (*syscalls[])(void) = {
     [SYS_fork]    sys_fork,
@@ -126,6 +131,11 @@ static int (*syscalls[])(void) = {
     [SYS_close]   sys_close,
     [SYS_getch]   sys_getch,
     // TODO: Add your system call function to the OS syscall table.
+    [SYS_setvideomode] sys_setvideomode,
+    [SYS_setpixel] sys_setpixel,
+    [SYS_drawline] sys_drawline,
+    [SYS_begingraphics] sys_begingraphics,
+    [SYS_endgraphics] sys_endgraphics,
 };
 
 void syscall(void) {
