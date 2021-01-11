@@ -1077,9 +1077,12 @@ int setvideomode(int mode){
     return validMode;
 }
 
-void processGraphicsCall(GraphicsCall call){
+int processGraphicsCall(GraphicsCall call){
     char *callName = call.callName;
     int length = strlen(callName);
+
+    int *args = call.arguments;
+    char argsLength = call.argumentsLength;
 
     // Print string for now (remove when func working)
     for (int i = 0; i < length; i++)
@@ -1088,7 +1091,30 @@ void processGraphicsCall(GraphicsCall call){
     }
     cgaputc('\n');
     
+    if (strncmp(callName, "setvideomode", length) == 0 && argsLength == 1)
+    {
+        int mode = args[0];
+        return setvideomode(mode);
+    }
+    else if (strncmp(callName, "setpixel", length) == 0 && argsLength == 3){
+        int x = args[0];
+        int y = args[1];
+        int c = args[2];
+        return setpixel(x, y, c);
+    }
+    else if (strncmp(callName, "drawline", length) == 0 && argsLength == 5)
+    {
+        int a = args[0];
+        int b = args[1];
+        int c = args[2];
+        int d = args[3];
+        int e = args[4];
+        return drawline(a, b, c, d, e);
+    }
     
+    
+    
+    return -1;
 }
 
 // Called in sysvideo

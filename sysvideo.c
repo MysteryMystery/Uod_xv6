@@ -9,25 +9,16 @@ int sys_getch(void) {
 // TODO: Implement your system call for switching video modes (and any other video-related syscalls)
 // in here.
 
-GraphicsCall *firstGraphicsCall;
-GraphicsCall *lastGraphicsCall;
-
 GraphicsCall graphicsCalls[1024];
 int graphicsCallCount = 0;
 
 char isBatching = -1;
 
-int appendGraphicsCall(char fName[], char arguments[], char argumentsLength){
-    GraphicsCall graphicsCall;/*
-    {
-        .callName = fName, 
-        args, 
-        argumentsLength
-    };
-    */
+int appendGraphicsCall(char fName[], int arguments[], char argumentsLength){
+    GraphicsCall graphicsCall;
 
    strncpy(graphicsCall.callName, fName, 50);
-   strncpy(graphicsCall.arguments, arguments, 10);
+   memmove(graphicsCall.arguments, arguments, 10 * sizeof(int));
    graphicsCall.argumentsLength = argumentsLength;
 
     graphicsCallCount++;
@@ -35,6 +26,7 @@ int appendGraphicsCall(char fName[], char arguments[], char argumentsLength){
     if (graphicsCallCount  > 1023)
         return -1;
     
+    //memmove(&graphicsCalls[graphicsCallCount - 1], &graphicsCall, sizeof(GraphicsCall));
     graphicsCalls[graphicsCallCount - 1] = graphicsCall;
 
     return 0;
@@ -48,7 +40,7 @@ int sys_setpixel(void){
     
     if (isBatching == 0)
     {
-        char args[] = {x, y, colour};
+        int args[] = {x, y, colour};
         return appendGraphicsCall("setpixel", args, 3);
     }
     return setpixel(x, y, colour);
@@ -59,7 +51,7 @@ int sys_setvideomode(void){
     argint(0, &mode); //seems to always return 0 - status code i'm assuming?
     if (isBatching == 0)
     {
-        char args[] = {mode};
+        int args[] = {mode};
         return appendGraphicsCall("setvideomode", args, 1);
     }
     return setvideomode(mode);
@@ -75,7 +67,7 @@ int sys_drawline(void){
 
     if (isBatching == 0)
     {
-        char args[] = {x0, y0, x1, y1, colour};
+        int args[] = {x0, y0, x1, y1, colour};
         return appendGraphicsCall("drawline", args, 5);
     } 
     return drawline(x0, y0, x1, y1, colour);
@@ -88,7 +80,7 @@ int sys_begingraphics(){
 
 int sys_endgraphics(){
     isBatching = -1;
-    int status = executeGraphicsBatch(firstGraphicsCall, graphicsCallCount);
+    int status = executeGraphicsBatch(graphicsCalls, graphicsCallCount);
     graphicsCallCount = 0;
     return status;
 }

@@ -11,6 +11,6 @@ enum {
 
 typedef struct GraphicsCall {
     char callName[50]; // The function name e.g setpixel, setvideomode, drawline 
-    char arguments[10];  // Hold the arguments
+    int arguments[10];  // Hold the arguments
     char argumentsLength;
 } GraphicsCall;
