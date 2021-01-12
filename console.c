@@ -930,21 +930,53 @@ int pixelOutOfBounds(int x, int y){
     return 0;
 }
 
+// https://aticleworld.com/how-to-set-clear-and-toggle-a-single-bit-in-cc/
+char setBit(char byte, char pos){
+    return byte | (1 << pos);
+}
+
+char clearBit(char byte, char pos){
+    return byte & (~(1 << pos));
+}
+
 /*
-     0 1 2 3
-    | | | | | 
+    plane 0 1 2 3
+    bit  |3|2|1|0|
+
+    bit plane, not byte plane, so a byte will hold 8 pixels?
 */
 int setpixel_0x12(int x, int y, int colour){
-    int offset = (VGA_0x12_WIDTH * y ) + x;
+    int offset = (VGA_0x12_WIDTH) * y + (x);
 
+    /*
     for (char i = 0; i < 4; i++){
         consolevgaplane(i);
         uchar *planeAddrPtr = consolevgabuffer();
-        planeAddrPtr = planeAddrPtr + offset;
+        planeAddrPtr = planeAddrPtr + offset / 8;
+        char bitOffset = *planeAddrPtr % 8;
 
         char pulledBit = (char) (colour >> (3 - i)) & 1;
+        pulledBit  = pulledBit << bitOffset;
+        *planeAddrPtr = clearBit(*planeAddrPtr, bitOffset);
+        *planeAddrPtr = *planeAddrPtr | pulledBit;
+    }
+    */
+
+    
+    char byteOffset = offset / 8;
+    char bitOffset = 7 - (offset % 8);
+    char bitMask = 1 << bitOffset;
+    //char clearMask = 255 - bitMask;
+    for (char i = 0; i < 4; i++){
+        consolevgaplane(i);
+        uchar *planeAddrPtr = consolevgabuffer();
+        planeAddrPtr = planeAddrPtr + byteOffset;
+
+        char pulledBit = ((char) colour) | bitMask;
         *planeAddrPtr = pulledBit;
     }
+
+
     return 0;
 }
 
