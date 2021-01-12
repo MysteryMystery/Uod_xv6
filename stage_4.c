@@ -23,7 +23,7 @@ int main(){
     */
 
     drawline(1, 1, 10, 1, 0xe);
-    drawline(1, 2, 10, 2, 0x9);
+    drawline(1, 3, 10, 3, 0xc);
     endgraphics(); 
 
     /*

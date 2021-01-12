@@ -944,39 +944,34 @@ char clearBit(char byte, char pos){
     bit  |3|2|1|0|
 
     bit plane, not byte plane, so a byte will hold 8 pixels?
+
+    This article explains majority with setting masks and actually setting bits, up to me for deciding which bits:
+    https://alt.os.development.narkive.com/pvve5HMP/mode-12h
 */
 int setpixel_0x12(int x, int y, int colour){
-    int offset = (VGA_0x12_WIDTH) * y + (x);
+    int pixelOffset = VGA_0x12_WIDTH * y + x;
+    int byteOffset = pixelOffset / 8;
 
-    /*
-    for (char i = 0; i < 4; i++){
+    for (int i = 0; i < 4; i++)
+    {
         consolevgaplane(i);
-        uchar *planeAddrPtr = consolevgabuffer();
-        planeAddrPtr = planeAddrPtr + offset / 8;
-        char bitOffset = *planeAddrPtr % 8;
+        uchar *planeAddr = consolevgabuffer();
+        planeAddr = planeAddr + byteOffset; // will hold 8 pixels per byte
+        char bitOffset = 7 - (pixelOffset % 8);
+        char setBit = 1 << bitOffset;
+        char clearBit = 255 - setBit;
 
-        char pulledBit = (char) (colour >> (3 - i)) & 1;
-        pulledBit  = pulledBit << bitOffset;
-        *planeAddrPtr = clearBit(*planeAddrPtr, bitOffset);
-        *planeAddrPtr = *planeAddrPtr | pulledBit;
+        //check the colour bit being 1 or 0
+        char pulledBit = (char) colour >> (i) & 1;
+
+        //Set or clear pixel
+        if (pulledBit == 1)
+            *planeAddr = *planeAddr | setBit;
+        else if (pulledBit == 0)
+            *planeAddr = *planeAddr & clearBit;
+        else 
+            return -1; //will be my coding error here, should either be 1 or 0 only
     }
-    */
-
-    
-    char byteOffset = offset / 8;
-    char bitOffset = 7 - (offset % 8);
-    char bitMask = 1 << bitOffset;
-    //char clearMask = 255 - bitMask;
-    for (char i = 0; i < 4; i++){
-        consolevgaplane(i);
-        uchar *planeAddrPtr = consolevgabuffer();
-        planeAddrPtr = planeAddrPtr + byteOffset;
-
-        char pulledBit = ((char) colour) | bitMask;
-        *planeAddrPtr = pulledBit;
-    }
-
-
     return 0;
 }
 
