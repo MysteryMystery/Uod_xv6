@@ -106,6 +106,9 @@ extern int sys_setpixel(void);
 extern int sys_drawline(void);
 extern int sys_begingraphics(void);
 extern int sys_endgraphics(void);
+extern int sys_fillrectangle(void);
+extern int sys_fillpolygon(void);
+extern int sys_drawcircle(void);
 
 static int (*syscalls[])(void) = {
     [SYS_fork]    sys_fork,
@@ -136,6 +139,9 @@ static int (*syscalls[])(void) = {
     [SYS_drawline] sys_drawline,
     [SYS_begingraphics] sys_begingraphics,
     [SYS_endgraphics] sys_endgraphics,
+    [SYS_fillrectangle] sys_fillrectangle,
+    [SYS_fillpolygon] sys_fillpolygon,
+    [SYS_drawcircle] sys_drawcircle,
 };
 
 void syscall(void) {

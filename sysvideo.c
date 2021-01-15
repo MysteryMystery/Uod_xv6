@@ -73,6 +73,50 @@ int sys_drawline(void){
     return drawline(x0, y0, x1, y1, colour);
 }
 
+int sys_drawcircle(void){
+    int cx, cy, r, c;
+    argint(0, &cx);
+    argint(1, &cy);
+    argint(2, &r);
+    argint(3, &c);
+
+    if (isBatching == 0)
+    {
+        int args[] = {cx, cy, r, c};
+        return appendGraphicsCall("drawcircle", args, 4);
+    }
+    return drawcircle(cx, cy, r, c);
+}
+
+int sys_fillrectangle(void){
+    int x0, y0, x1, y1, colour;
+    argint(0, &x0);
+    argint(1, &y0);
+    argint(2, &x1);
+    argint(3, &y1);
+    argint(4, &colour);
+
+    if (isBatching == 0)
+    {
+        int args[] = {x0, y0, x1, y1, colour};
+        return appendGraphicsCall("fillrectangle", args, 5);
+    } 
+    return fillrectangle(x0, y0, x1, y1, colour);
+}
+
+int sys_fillpolygon(void){
+    int colour, pointsLen;
+    char *points;
+    argint(2, &colour);
+    argint(1, &pointsLen);
+    argptr(0, &points, pointsLen * sizeof(int));
+    if (isBatching == 0)
+    {
+        //todo;
+    } 
+    return fillpolygon((int*)points, pointsLen, colour);
+}
+
 int sys_begingraphics(){
     isBatching = 0;
     return 0;

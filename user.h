@@ -30,6 +30,9 @@ int setpixel(int, int, int);
 int drawline(int, int, int, int, int);
 int begingraphics(void);
 int endgraphics(void);
+int fillpolygon(int[], int, int);
+int fillrectangle(int, int, int, int, int);
+int drawcircle(int, int, int, int);
 
 // ulib.c
 int stat(const char*, struct stat*);

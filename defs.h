@@ -30,6 +30,9 @@ int             setpixel(int, int, int);
 int             drawline(int, int, int, int, int);
 int             setvideomode(int);
 int             executeGraphicsBatch(GraphicsCall [], int);
+int             fillrectangle(int, int, int, int, int);
+int             fillpolygon(int[], int, int);
+int             drawcircle(int, int, int, int);
 
 // exec.c
 int             exec(char*, char**);

@@ -949,6 +949,10 @@ char clearBit(char byte, char pos){
     https://alt.os.development.narkive.com/pvve5HMP/mode-12h
 */
 int setpixel_0x12(int x, int y, int colour){
+    if (pixelOutOfBounds(x, y) == 0)
+        return -1;
+    
+
     int pixelOffset = VGA_0x12_WIDTH * y + x;
     int byteOffset = pixelOffset / 8;
 
@@ -976,35 +980,220 @@ int setpixel_0x12(int x, int y, int colour){
 }
 
 int setpixel(int x, int y, int colour){
+    acquire(&cons.lock);
+    int flag = 0;
+
     if (currentvgamode == 0x13)
     {
         if (pixelOutOfBounds(x, y) == 0)
-            return -1;
+            flag =  -1;
         unsigned char *memoryLocation = (unsigned char *) VGA_0x13_MEMORY + (VGA_0x13_WIDTH * y) + x;
         *memoryLocation = colour;
     } 
     else if (currentvgamode == 0x12)
-        return setpixel_0x12(x, y, colour);
+        flag =  setpixel_0x12(x, y, colour);
+
+    release(&cons.lock);
+
+    return flag;
+}
+
+int abs(int x){
+    return x < 0 ? x * -1 : x;
+}
+
+int drawline(int x0, int y0, int x1, int y1, int colour){
+    // Bresenhams - taken from assignment 1
+    /*
+    plotLine(int x0, int y0, int x1, int y1)
+    dx =  abs(x1-x0);
+    sx = x0<x1 ? 1 : -1;
+    dy = -abs(y1-y0);
+    sy = y0<y1 ? 1 : -1;
+    err = dx+dy;  
+    while (true)   
+        plot(x0, y0);
+        if (x0 == x1 && y0 == y1) break;
+        e2 = 2*err;
+        if (e2 >= dy) 
+            err += dy;
+            x0 += sx;
+        end if
+        if (e2 <= dx) 
+            err += dx;
+            y0 += sy;
+        end if
+    end while
+    */
+   int dx = abs(x1 - x0);
+   int sx = x0 < x1 ? 1 : -1;
+   int dy = abs(y1 - y0) * -1;
+   int sy = y0 < y1 ? 1 : -1;
+   int err = dx + dy;
+   int e2;
+   while (1)
+   {
+        setpixel(x0, y0, colour);
+        if(x0 == x1 && y0 == y1)
+            break;
+        e2 = 2 * err;
+        if (e2 >= dy)
+        {
+            err += dy;
+            x0 += sx;
+        }
+        if (e2 <= dx)
+        {
+            err += dx;
+            y0 += sy;
+        }
+   }
+   
+
+    return 0;
+}
+
+//Bresenhams
+void plotCirclePoints(int centreX, int centreY, int x, int y, int colour){
+    setpixel(centreX+x, centreY+y, colour); 
+    setpixel(centreX-x, centreY+y, colour); 
+    setpixel(centreX+x, centreY-y, colour); 
+    setpixel(centreX-x, centreY-y, colour); 
+    setpixel(centreX+y, centreY+x, colour); 
+    setpixel(centreX-y, centreY+x, colour); 
+    setpixel(centreX+y, centreY-x, colour); 
+    setpixel(centreX-y, centreY-x, colour); 
+}
+
+int drawcircle(int centreX, int centreY, int radius, int colour){
+    int x = 0;
+    int y = radius;
+    int d = 3 - 2 * radius;
+    plotCirclePoints(centreX, centreY, x, y, colour);
+    while (y >= x){
+        x++;
+        if (d > 0)
+        {
+            y--;
+            d = d + 4 * (x - y) + 10;
+        }
+        else 
+            d = d + 4 * x + 6;
+        plotCirclePoints(centreX, centreY, x, y, colour);
+    }
+    return 0;
+}
+
+int fillrectangle_0x12(int x0, int y0, int x1, int y1, int colour){
+    int xStart = x0 < x1 ? x0 : x1;
+    int xLen = xStart == x1 ? x0 - x1 : x1 - x0;
+
+    int yStart = y0 < y1 ? y0 : y1;
+    int yEnd =   y0 < y1 ? y1 : y0;
+
+    while (yStart < yEnd)
+    {
+        int startPixelOffset = VGA_0x12_WIDTH * yStart + xStart;
+        int startByteOffset = startPixelOffset / 8;
+
+        int endPixelOffset = startPixelOffset + xLen;
+        int endByteOffset = endPixelOffset / 8;
+
+        for (char i = 0; i < 3; i++){
+            consolevgaplane(i);
+
+            // Starting byte bit masks
+            unsigned char *startPlaneAddr = consolevgabuffer();
+            startPlaneAddr = startPlaneAddr + startByteOffset;
+            char startBitOffset = 7 - (startPixelOffset % 8);
+            char startSetBit = 255 >> startBitOffset; // Instead of moving 1 to the set bit, we want to move 0 into unaffected bit
+            char startClearBit = 255 - startSetBit;
+
+            //Ending byte bit masks
+            unsigned char *endPlaneAddr = consolevgabuffer();
+            endPlaneAddr = endPlaneAddr + endByteOffset;
+            char endBitOffset = 7 - (endPixelOffset % 8);
+            char endSetBit = 255 << endBitOffset;
+            char endClearBit = 0 + endSetBit;
+
+            // Middle bytes (no complicated masks needed, just 255, and 0 for memset)
+            char numberIntermediateBytes = endPlaneAddr - startPlaneAddr - 1;
+
+            char colourBit = (char) colour >> i & 1;
+            if (colourBit == 1)
+            {
+                *startPlaneAddr = *startPlaneAddr | startSetBit;
+                *endPlaneAddr = *endPlaneAddr | endSetBit;
+
+                memset(startPlaneAddr + 1, 255, numberIntermediateBytes);
+            }
+            else {
+                *startPlaneAddr = *startPlaneAddr & startClearBit;
+                *endPlaneAddr = *endPlaneAddr & endClearBit;
+
+                memset(endPlaneAddr + 1, 0, numberIntermediateBytes);
+            }
+        }
+        yStart++;
+    }
     
     return 0;
 }
 
-int drawline(int x0, int y0, int x1, int y1, int colour){
-    // Bresenhams
-    int dx = x1 - x0;
-    int dy = y1 - y0;
-    int d = 2*dy - dx;
-    int y = y0;
+int fillrectangle_0x13(int x0, int y0, int x1, int y1, int colour){
+    int xStart = x0 < x1 ? x0 : x1;
+    int xLen = xStart == x1 ? x0 - x1 : x1 - x0;
 
-    for (int x = 0; x < x1; x++)
+    int yStart = y0 < y1 ? y0 : y1;
+    int yEnd =   y0 < y1 ? y1 : y0;
+
+    while (yStart < yEnd)
     {
-        setpixel(x, y, colour);
-        if (d > 0){
-            y++;
-            d = d - 2*dx;
-        }
-        d = d + 2*dy;
+        unsigned char *mem = (unsigned char *) VGA_0x13_MEMORY + (VGA_0x13_WIDTH * yStart) + xStart;
+        memset(mem, xLen, colour);
+        yStart++;
     }
+    
+    return 0;
+}
+
+int fillrectangle(int x0, int y0, int x1, int y1, int colour){
+    acquire(&cons.lock); // not going to use setpixel for this
+
+    int status = -1;
+    if (currentvgamode == 0x12)
+        status = fillrectangle_0x12(x0, y0, x1, y1, colour);
+    else if (currentvgamode == 0x13)
+        status = fillrectangle_0x13(x0, y0, x1, y1, colour);
+
+    release(&cons.lock);
+    return status;
+}
+
+int fillpolygon(int points[], int pointsLen, int colour){
+    //if (pointsLen < 2 || pointsLen % 2 == 1)
+      //  return -1;
+    
+    int startX = points[0];
+    int startY = points[1];
+    int lastX = points[0];
+    int lastY = points[1];
+    
+    
+    for (int i = 0; i < pointsLen; i++)
+    {
+        if (i % 2 == 1)
+            continue;
+
+        int x = points[i];
+        int y = points[i+1];
+
+        drawline(lastX, lastY, x, y, colour);
+
+        lastX = x;
+        lastY = y;
+    }
+    drawline(lastX, lastY, startX, startY, colour);
     return 0;
 }
 
@@ -1029,6 +1218,7 @@ void paintVGAModeCanvas0x13(int colour){
 }
 
 void paintVGAModeCanvas(int colour){
+    acquire(&cons.lock);
     switch (currentvgamode)
     {
     case 0x13:
@@ -1040,6 +1230,7 @@ void paintVGAModeCanvas(int colour){
     default:
         break;
     }
+    release(&cons.lock);
 }
 
 // 16 bit per "glyph"
@@ -1138,9 +1329,21 @@ int processGraphicsCall(GraphicsCall call){
         int e = args[4];
         return drawline(a, b, c, d, e);
     }
-    
-    
-    
+    else if (strncmp(callName, "drawcircle", length) == 0 && argsLength == 4){
+        int a = args[0];
+        int b = args[1];
+        int c = args[2];
+        int d = args[3];
+        return drawcircle(a, b, c, d);
+    }
+    else if (strncmp(callName, "fillrectangle", length) == 0 && argsLength == 5){
+        int a = args[0];
+        int b = args[1];
+        int c = args[2];
+        int d = args[3];
+        int e = args[4];
+        return fillrectangle(a, b, c, d, e);
+    }
     return -1;
 }
 

@@ -192,6 +192,12 @@ UPROGS=\
 	_stage_2\
 	_stage_3\
 	_stage_4\
+	_stage_5\
+	_draw_0x12\
+	_draw_0x12_b\
+	_draw_0x13\
+	_draw_0x13_b\
+	_restore_text\
 
 fs.img: mkfs $(UPROGS)
 	./mkfs fs.img $(UPROGS)

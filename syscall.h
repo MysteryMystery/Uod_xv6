@@ -26,3 +26,6 @@
 #define SYS_drawline 25
 #define SYS_begingraphics 26
 #define SYS_endgraphics 27
+#define SYS_fillrectangle 28
+#define SYS_fillpolygon 29
+#define SYS_drawcircle 30
