@@ -7,6 +7,8 @@ int main(){
 
     setvideomode(0x13);
 
+    printf(1, "This text was written inside of mode 13.\n");
+
     setvideomode(0x3);
     exit();
 }

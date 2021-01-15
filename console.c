@@ -168,7 +168,7 @@ static void cgaputc(int c) {
         pos |= inb(CRTPORT + 1);
     } else { 
         //In graphics mode so we want to use our snapshot
-        crt = (ushort *) &textModeSnapshot;
+        crt = (ushort *) &textModeSnapshot - 1;
         pos = cursorSnapshot;
     }
     
@@ -1004,27 +1004,6 @@ int abs(int x){
 
 int drawline(int x0, int y0, int x1, int y1, int colour){
     // Bresenhams - taken from assignment 1
-    /*
-    plotLine(int x0, int y0, int x1, int y1)
-    dx =  abs(x1-x0);
-    sx = x0<x1 ? 1 : -1;
-    dy = -abs(y1-y0);
-    sy = y0<y1 ? 1 : -1;
-    err = dx+dy;  
-    while (true)   
-        plot(x0, y0);
-        if (x0 == x1 && y0 == y1) break;
-        e2 = 2*err;
-        if (e2 >= dy) 
-            err += dy;
-            x0 += sx;
-        end if
-        if (e2 <= dx) 
-            err += dx;
-            y0 += sy;
-        end if
-    end while
-    */
    int dx = abs(x1 - x0);
    int sx = x0 < x1 ? 1 : -1;
    int dy = abs(y1 - y0) * -1;
@@ -1048,8 +1027,6 @@ int drawline(int x0, int y0, int x1, int y1, int colour){
             y0 += sy;
         }
    }
-   
-
     return 0;
 }
 
@@ -1170,15 +1147,11 @@ int fillrectangle(int x0, int y0, int x1, int y1, int colour){
     return status;
 }
 
-int fillpolygon(int points[], int pointsLen, int colour){
-    //if (pointsLen < 2 || pointsLen % 2 == 1)
-      //  return -1;
-    
+int drawpolygon(int points[], int pointsLen, int colour){
     int startX = points[0];
     int startY = points[1];
     int lastX = points[0];
     int lastY = points[1];
-    
     
     for (int i = 0; i < pointsLen; i++)
     {
@@ -1194,6 +1167,29 @@ int fillpolygon(int points[], int pointsLen, int colour){
         lastY = y;
     }
     drawline(lastX, lastY, startX, startY, colour);
+    return 0;
+}
+
+int fillpolygon(int points[], int pointsLen, int colour){
+    //if (pointsLen < 2 || pointsLen % 2 == 1)
+      //  return -1;
+
+    // draw vertices for debugging purposes
+    drawpolygon(points, pointsLen, colour);
+
+    //Fill polygon
+    // Get highest point,
+    // scan pixels in all directions bar current and previous
+    // determine pixels are valid by seeing if they are inside lines
+    // add points to scan array
+    // loop that scan array with logic rather than recursion to keep stackframe small
+
+    // OR
+
+    // Inefficient but probably easier:
+    // get equations of lines, scan a square, small enough for polygon to touch sides, 
+    // check if point between pairs of lines
+
     return 0;
 }
 
@@ -1264,7 +1260,7 @@ void restoreTextSnapshot(){
     }
 
     //Cursor
-    outb(CRTPORT, 14);          // register call i think?
+    outb(CRTPORT, 14);          
     outb(CRTPORT + 1, cursorSnapshot >> 8);
     outb(CRTPORT, 15);
     outb(CRTPORT + 1, cursorSnapshot);
@@ -1343,6 +1339,10 @@ int processGraphicsCall(GraphicsCall call){
         int d = args[3];
         int e = args[4];
         return fillrectangle(a, b, c, d, e);
+    } 
+    else if(strncmp(callName, "fillpolygon", length) == 0 /* var args */){
+        int colour = args[argsLength - 1];
+        return fillpolygon(args, argsLength - 1, colour);
     }
     return -1;
 }

@@ -104,17 +104,18 @@ int sys_fillrectangle(void){
     return fillrectangle(x0, y0, x1, y1, colour);
 }
 
+// upto 10 points
 int sys_fillpolygon(void){
-    int colour, pointsLen;
+    int pointsLen;
     char *points;
-    argint(2, &colour);
     argint(1, &pointsLen);
-    argptr(0, &points, pointsLen * sizeof(int));
+    argptr(0, &points, (pointsLen + 1) * sizeof(int));
+
     if (isBatching == 0)
-    {
-        //todo;
-    } 
-    return fillpolygon((int*)points, pointsLen, colour);
+        return appendGraphicsCall("fillpolygon", (int *) points, pointsLen);
+
+    int colour = points[pointsLen - 1];
+    return fillpolygon((int *) points, pointsLen - 1, colour);
 }
 
 int sys_begingraphics(){

@@ -13,9 +13,12 @@ int main(){
 
     //drawcircle(80, 80, 10, 0xe);
     
-    fillrectangle(2, 2, 50, 50, 0xd);
+    //fillrectangle(2, 2, 50, 50, 0xd);
 
-    fillrectangle(2, 52, 70, 70, 0xe);
+    //fillrectangle(2, 52, 70, 70, 0xe);
+
+    int points[] = {30, 30, 50, 10, 70, 30, 50, 100, 0xd};
+    fillpolygon(points, 9);
 
     endgraphics();    
 
